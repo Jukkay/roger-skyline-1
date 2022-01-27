@@ -17,13 +17,9 @@ autoinstall:
       enp0s3:
         addresses:
             - 10.11.254.253/30
+        gateway4: 10.11.254.254
         nameservers:
           addresses: [10.51.1.253]
-          search: []
-        #routes:
-        #    - to: 0.0.0.0/0
-        #      via: 10.11.254.254
-        #      on-link: true
     version: 2
   ssh:
     allow-pw: false
@@ -129,13 +125,13 @@ autoinstall:
 
     ## Update packages script to cron
     # Create new crontab and add package upgrade script
-        - (crontab -l 2>/dev/null; echo "0 4 * * 0 sudo touch /var/log/update_script.log ; sudo chown $(who -s | cut -d " " -f1) /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log") | crontab -
+        - (crontab -l 2>/dev/null; echo "0 4 * * 0 sudo touch /var/log/update_script.log ; sudo chown $USER /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log") | crontab -
 
     # Copy crontab to tempfile
         - crontab -l > tmpfile
 
     # Add second job to tmpfile
-        - echo "@reboot sudo touch /var/log/update_script.log ; sudo chown $(who -s | cut -d " " -f1) /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log" >> tmpfile
+        - echo "@reboot sudo touch /var/log/update_script.log ; sudo chown $USER /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log" >> tmpfile
 
     ## Check if /etc/crontab has been changed
     # Backup aliases
