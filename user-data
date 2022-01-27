@@ -16,11 +16,14 @@ autoinstall:
     ethernets:
       enp0s3:
         addresses:
-            - 10.11.254.253/30
-        gateway4: 10.11.254.254
+            - 10.11.199.42/30
         nameservers:
           addresses: [10.51.1.253]
           search: []
+        routes:
+            - to: 0.0.0.0/0
+              via: 10.11.254.254
+              on-link: true
     version: 2
   ssh:
     allow-pw: false
