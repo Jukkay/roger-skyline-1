@@ -1,0 +1,156 @@
+#cloud-config
+autoinstall:
+  apt:
+    geoip: true
+    preserve_sources_list: false
+    primary:
+    - arches: [amd64, i386]
+      uri: http://fi.archive.ubuntu.com/ubuntu
+    - arches: [default]
+      uri: http://ports.ubuntu.com/ubuntu-ports
+  identity: {hostname: roger-skyline-1, password: $6$aL7b8Q61eq4WRu9N$bfOThHs4rU6QKOlUzKnHuRpBZ27/qV93If.3yxc6u.bAIokkLRn1jWG3NlY8sqG2aY98NRzDcNWygoMMeQv1Z0,
+    realname: jylimaul, username: jylimaul}
+  keyboard: {layout: us, toggle: null, variant: ''}
+  locale: en_US.UTF-8
+  network:
+    ethernets:
+      enp0s3:
+        addresses:
+            - 10.11.254.253/30
+        gateway4: 10.11.254.254
+        nameservers:
+          addresses: [10.51.1.253]
+          search: []
+    version: 2
+  ssh:
+    allow-pw: false
+    authorized-keys: ['ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCYPgH1FBz6EUXytHpJHTNzKSnP31M7WodQoYTSOnyBDCNhpphWu0syXfqdE51u+HZvASUHX4CxDrZp2BPcV8yZyrrezFy9w9WRMMpnCIAnvXiCmvFS6UGpaz6hcfSMqN+KwooNyeCHMUmGgSfoI7uHSkDDi9rOSb3rfyIyvKodsbSjNHqjrTO3YEUHbCDXZ5oKFwHijhJO2AqFKaFvbWXRTXABXPkwwwEdgnxFo/9r/LoYpcBWXGuzLiuIHbPyQn8lvHX6ALKngmcgiKRDNKwltajIfA9oZK7U7RYYXK/B51qc8tah6+yU5fHXkAuWa8k/DwnUIPIRmvq6AgUNP1c7 jylimaul@c1r4p6.hive.fi']
+    install-server: true
+  storage:
+    config:
+    - {ptable: gpt, path: /dev/sda, wipe: superblock-recursive,
+      preserve: false, name: '', grub_device: true, type: disk, id: disk-sda}
+    - {device: disk-sda, size: 1048576, flag: bios_grub, number: 1, preserve: false,
+      grub_device: false, type: partition, id: partition-3}
+    - {device: disk-sda, size: 1000000000, wipe: superblock, flag: '', number: 2,
+      preserve: false, grub_device: false, type: partition, id: partition-4}
+    - {fstype: ext4, volume: partition-4, preserve: false, type: format, id: format-5}
+    - {device: disk-sda, size: 4200000000, wipe: superblock, flag: '', number: 3,
+      preserve: false, grub_device: false, type: partition, id: partition-5}
+    - {fstype: ext4, volume: partition-5, preserve: false, type: format, id: format-6}
+    - {path: /, device: format-6, type: mount, id: mount-6}
+    - {device: disk-sda, size: 2792357888, wipe: superblock, flag: '', number: 4,
+      preserve: false, grub_device: false, type: partition, id: partition-6}
+    - {fstype: ext4, volume: partition-6, preserve: false, type: format, id: format-7}
+    - {path: /home, device: format-7, type: mount, id: mount-7}
+    - {path: /boot, device: format-5, type: mount, id: mount-5}
+  updates: security
+  version: 1
+  packages:
+    - fail2ban
+    - psad
+    - exim4
+    - nginx
+    - ufw
+  user-data:
+    runcmd:
+    ## SSH configuration
+    # Backup previous sshd_config
+        - sudo cp /etc/ssh/sshd_config /root/sshbackup
+
+    # Change SSH port to 4242
+        - sudo sed -i '/Port 22/c\Port 4242' /etc/ssh/sshd_config
+
+    # Restart SSH service
+        - sudo systemctl restart ssh
+
+    ## Setup UFW firewall
+    # Open port 4242 (SSH)
+        - sudo ufw allow 4242/tcp
+
+    # Open port 80 (HTTP)
+        - sudo ufw allow 80/tcp
+
+    # Open port 443 (HTTPS)
+        - sudo ufw allow 443/tcp
+
+    # Enable UFW
+        - sudo ufw enable
+
+    ## Setup DDOS protection
+    # Create configuration file
+        - sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+    # Enable fail2ban
+        - sudo systemctl enable fail2ban.service
+
+    ## Setup port scanning protection
+    # Backup psad.conf
+        - sudo cp /etc/psad/psad.conf /root/psadbackup
+
+    # Change hostname
+        - sudo sed -i '/HOSTNAME                    _CHANGEME_;/c\HOSTNAME                    roger-skyline-1;' /etc/psad/psad.conf
+
+    # Change syslog file
+        - sudo sed -i '/IPT_SYSLOG_FILE         /c\IPT_SYSLOG_FILE         /var/log/syslog;' /etc/psad/psad.conf
+
+    # Enable PSAD to manage firewall rules
+        - sudo sed -i '/ENABLE_AUTO_IDS             N;/c\ENABLE_AUTO_IDS             Y;' /etc/psad/psad.conf
+
+    # Enable iptables blocking
+        - sudo sed -i '/IPTABLES_BLOCK_METHOD/c\IPTABLES_BLOCK_METHOD       Y;' /etc/psad/psad.conf
+
+    # Disable email notifications
+        - sudo sed -i '/ALERTING_METHODS            ALL;/c\ALERTING_METHODS            noemail;' /etc/psad/psad.conf
+
+    # Exempt host computer from psad actions
+        - echo "$(ip addr show dev enp0s3 | grep 'inet ' | awk '{print $2}' | sed s'/\/.*$//')        0;"| sudo tee -a /etc/psad/auto_dl
+
+    # Restart PSAD
+        - sudo /etc/init.d/psad restart
+
+    # Update firewall rules to log INPUT and FORWARD packets
+        - sudo iptables -A INPUT -j LOG
+        - sudo iptables -A FORWARD -j LOG
+        - sudo ip6tables -A INPUT -j LOG
+        - sudo ip6tables -A FORWARD -j LOG
+
+    # Restart PSAD
+        - sudo psad -R
+
+    # Update PSAD signature database
+        - sudo psad --sig-update
+
+    # Ask all PSAD deamons to reimport configuration
+        - sudo psad -H
+
+    ## Update packages script to cron
+    # Create new crontab and add package upgrade script
+        - (crontab -l 2>/dev/null; echo "0 4 * * 0 sudo touch /var/log/update_script.log ; sudo chown $(who -s | cut -d " " -f1) /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log") | crontab -
+
+    # Copy crontab to tempfile
+        - crontab -l > tmpfile
+
+    # Add second job to tmpfile
+        - echo "@reboot sudo touch /var/log/update_script.log ; sudo chown $(who -s | cut -d " " -f1) /var/log/update_script.log ; sudo apt-get upgrade -y &> /var/log/update_script.log" >> tmpfile
+
+    ## Check if /etc/crontab has been changed
+    # Backup aliases
+        - sudo cp /etc/aliases /root/aliasesbackup
+
+    # Update root alias
+        - sudo cp /etc/aliases aliasestmp
+        - 'sudo echo "root: jylimaul" >> aliasestmp'
+        - sudo mv aliasestmp /etc/aliases
+
+    # Write script to tmpfile
+        - echo "0 0 * * * if [[ ! $(diff -s /etc/crontab /etc/cronold) == *"identical"* ]] ; then sudo mail -s 'Crontab was modified' root <<< 'Crontab was modified' ; sudo cp /etc/crontab /etc/cronold ; fi" >> tmpfile
+    # Replace crontab with tmpfile
+        - crontab tmpfile
+
+    # Delete tmpfile
+        - rm -rf tmpfile
+
+    ## Configure nginx
+    # Allow ngix through firewall
+        - sudo ufw allow 'nginx FULL'
