@@ -153,3 +153,38 @@ autoinstall:
     ## Configure nginx
     # Allow ngix through firewall
         - sudo ufw allow 'nginx FULL'
+
+    # Create certificate and key. req -x509 is type of certificate, -nodes skips passphrase for using the certificate, -days 365 is the length of validity, -newkey rsa:2048 is the type of key, -keyout is the location of the key, -key is the location of the certificate
+        - sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+
+    # Setup forward secrecy
+        - sudo openssl dhparam -out /etc/nginx/dhparam.pem 4096
+
+    # Backup nginx configuration
+        - sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
+
+    # Write configuration file
+        - sudo chown $USER /etc/nginx/sites-available/default
+        - 'echo "server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    include snippets/self-signed.conf;
+    include snippets/ssl-params.conf;
+
+    root /var/www/html;
+    index index.html index.htm index.nginx-debian.html;
+
+    server_name 10.11.254.253 www.10.11.254.253;
+}" > /etc/nginx/sites-available/default'
+        - 'echo "server {
+    listen 80;
+    listen [::]:80;
+
+    server_name 10.11.254.253 www.10.11.254.253;
+
+    return 301 https://\$server_name\$request_uri;
+}" >> /etc/nginx/sites-available/default'
+
+    # Enable changes and restart nginx
+        - sudo nginx -t
+        - sudo systemctl restart nginx
