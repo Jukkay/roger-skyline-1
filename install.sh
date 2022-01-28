@@ -1,4 +1,7 @@
 ## Setup SSL
+# Allow ngix through firewall
+sudo ufw allow 'nginx FULL'
+
 # Create certificate and key. req -x509 is type of certificate, -nodes skips passphrase for using the certificate, -days 365 is the length of validity, -newkey rsa:2048 is the type of key, -keyout is the location of the key, -key is the location of the certificate
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
 
@@ -61,4 +64,15 @@ sudo nginx -t
 sudo systemctl restart nginx
 
 # Remove unnecessary packages and processes
-sudo apt-get uninstall git
+# Cloud-init. Unselect all but "none" on the screen
+sudo touch /etc/cloud/cloud-init.disabled
+sudo dpkg-reconfigure cloud-init
+sudo dpkg --configure -a
+sudo apt-get purge cloud-init
+sudo rm -rf /etc/cloud/ && sudo rm -rf /var/lib/cloud/
+
+# Remove unused dependencies
+sudo apt autoremove
+
+# reboot
+sudo reboot
