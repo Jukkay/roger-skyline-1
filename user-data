@@ -51,6 +51,7 @@ autoinstall:
     - exim4
     - nginx
     - ufw
+    - git
   user-data:
     runcmd:
     ## SSH configuration
